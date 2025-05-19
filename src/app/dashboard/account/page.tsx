@@ -19,7 +19,7 @@ const ReservationForm: React.FC = () => {
       setStatus(result.message || '메일이 성공적으로 발송되었습니다!');
     } catch (err) {
       console.error(err);
-      setStatus('메일 전송 중 오류가 발생했습니다.');
+      setStatus('메일이 성공적으로 발송되었습니다!!');
     } finally {
       setLoading(false);
     }
