@@ -19,7 +19,7 @@ const CsvUpload: React.FC = () => {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://localhost:8000/upload_csv', {
+      const response = await fetch('https://api.noexit.today:8000/upload_csv', {
         method: 'POST',
         body: formData,
       });
