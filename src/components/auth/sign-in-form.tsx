@@ -21,6 +21,7 @@ import { z as zod } from 'zod';
 import { paths } from '@/paths';
 import { authClient } from '@/lib/auth/client';
 import { useUser } from '@/hooks/use-user';
+import { useAuth } from '@/components/auth/auth-context';
 
 const schema = zod.object({
   email: zod.string().min(1, { message: 'Email is required' }).email(),
@@ -35,6 +36,8 @@ export function SignInForm(): React.JSX.Element {
   const router = useRouter();
 
   const { checkSession } = useUser();
+
+  const { login } = useAuth();
 
   const [showPassword, setShowPassword] = React.useState<boolean>();
 
@@ -58,13 +61,15 @@ export function SignInForm(): React.JSX.Element {
         setIsPending(false);
         return;
       }
-
       // Refresh the auth state
-      await checkSession?.();
+      // await checkSession?.();
 
       // UserProvider, for this case, will not refresh the router
       // After refresh, GuestGuard will handle the redirect
-      router.refresh();
+      // router.refresh(
+      // );
+      login();   
+      router.push('/dashboard');
     },
     [checkSession, router, setError]
   );
@@ -74,9 +79,8 @@ export function SignInForm(): React.JSX.Element {
       <Stack spacing={1}>
         <Typography variant="h4">Sign in</Typography>
         <Typography color="text.secondary" variant="body2">
-          Don&apos;t have an account?{' '}
+          {/* Don&apos;t have an account?{' '} */}
           <Link component={RouterLink} href={paths.auth.signUp} underline="hover" variant="subtitle2">
-            Sign up
           </Link>
         </Typography>
       </Stack>
@@ -129,7 +133,7 @@ export function SignInForm(): React.JSX.Element {
           />
           <div>
             <Link component={RouterLink} href={paths.auth.resetPassword} variant="subtitle2">
-              Forgot password?
+              {/* Forgot password? */}
             </Link>
           </div>
           {errors.root ? <Alert color="error">{errors.root.message}</Alert> : null}
@@ -138,16 +142,18 @@ export function SignInForm(): React.JSX.Element {
           </Button>
         </Stack>
       </form>
-      <Alert color="warning">
-        Use{' '}
+      {/* <Alert color="warning">
+        {/* Use{' '} */}
         <Typography component="span" sx={{ fontWeight: 700 }} variant="inherit">
-          gnd@inha.edu
+          {/* gnd@inha.edu */}
         </Typography>{' '}
-        with password{' '}
+        {/* with password{' '} */}
         <Typography component="span" sx={{ fontWeight: 700 }} variant="inherit">
-          1234
+          {/* 1234 */}
         </Typography>
-      </Alert>
+      {/* </Alert> */} 
     </Stack>
   );
 }
+
+
