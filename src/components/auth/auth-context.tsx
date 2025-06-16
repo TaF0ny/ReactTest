@@ -1,28 +1,34 @@
+// src/components/auth/auth-context.tsx
 'use client';
 
-import { useRouter } from 'next/navigation';
-import React, { useEffect } from 'react';
-import { useAuth } from './auth-context';
+import React, { createContext, useContext, useState } from 'react';
 
-interface GuestGuardProps {
-  children: React.ReactNode;
+interface AuthContextType {
+  isAuthenticated: boolean;
+  login: () => void;
+  logout: () => void;
 }
 
-export function GuestGuard({ children }: GuestGuardProps) {
-  const router = useRouter();
-  const { isAuthenticated } = useAuth();
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-  useEffect(() => {
-    // isAuthenticated가 true일 때에만 /dashboard로 리다이렉트
-    if (isAuthenticated) {
-      router.replace('/dashboard');
-    }
-  }, [isAuthenticated, router]);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // 최종적으로 login()이 호출되어야 isAuthenticated가 true가 됩니다.
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // 로그인되지 않은 상황(isAuthenticated === false)이면 children(로그인 폼)을 보여준다.
-  if (!isAuthenticated) {
-    return <>{children}</>;
+  const login = () => setIsAuthenticated(true);
+  const logout = () => setIsAuthenticated(false);
+
+  return (
+    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
   }
-  // 로그인이 되어 있으면 리다이렉트가 발생하므로 이 시점에 null을 반환해도 무방
-  return null;
+  return context;
 }
