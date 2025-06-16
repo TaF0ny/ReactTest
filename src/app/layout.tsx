@@ -1,9 +1,12 @@
+// app/layout.tsx
 import * as React from 'react';
 import type { Viewport } from 'next';
 
 import '@/styles/global.css';
 
+import { AuthProvider } from '@/components/auth/auth-context';
 import { UserProvider } from '@/contexts/user-context';
+
 import { LocalizationProvider } from '@/components/core/localization-provider';
 import { ThemeProvider } from '@/components/core/theme-provider/theme-provider';
 
@@ -19,10 +22,17 @@ export default function Layout({ children }: LayoutProps): React.JSX.Element {
       <body>
         <LocalizationProvider>
           <UserProvider>
-            <ThemeProvider>{children}</ThemeProvider>
+            <ThemeProvider>
+              {/* AuthProvider → 로그인/로그아웃 상태를 전역에서 관리 */}
+              <AuthProvider>
+                {children}
+              </AuthProvider>
+            </ThemeProvider>
           </UserProvider>
         </LocalizationProvider>
       </body>
     </html>
   );
 }
+
+
