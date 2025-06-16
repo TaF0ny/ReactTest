@@ -2,6 +2,34 @@
 
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
+from pathlib import Path
+
+# 📌 경로
+DATA_DIR = Path("backend/data")
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# 1) Raw CSV 불러오기
+df = pd.read_csv("data/dummy_customer_data.csv", encoding="utf-8-sig")
+
+# 2) 전처리
+df['last_login'] = pd.to_datetime(df['last_login'])
+df['days_since_login'] = (pd.Timestamp.today() - df['last_login']).dt.days
+
+# ✅ payment_status → churned
+df['churned'] = df['payment_status'].map({'paid': 0, 'unpaid': 1})
+
+# 필요없는 열 제거
+df = df.drop(columns=['payment_status', 'name', 'email', 'preferred_category', 'last_login'])
+
+# 3) 정규화는 train_model.py에서 재학습할 때 fit하도록 → 여기서는 원본만 저장
+df.to_csv(DATA_DIR / "processed_customer_data.csv", index=False, encoding="utf-8-sig")
+
+print("✅ 전처리 완료: processed_customer_data.csv 저장됨")
+
+
+"""
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from pathlib import Path
 
@@ -41,3 +69,4 @@ y_test.to_csv("backend/data/y_test.csv", index=False)
 df.to_csv("backend/backend/data/processed_customer_data.csv", index=False, encoding="utf-8-sig")
 
 print("✅ 전처리 및 분할 완료. 데이터 저장됨.")
+"""
