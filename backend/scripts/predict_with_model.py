@@ -1,4 +1,125 @@
+# backend/scripts/predict_with_model.py
+
+from datetime import datetime
 import pandas as pd
+import joblib
+from pathlib import Path
+from collections import Counter
+import json
+import matplotlib.pyplot as plt  
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+def predict_churn(file_path: str, threshold: float = 0.5, versioned: bool = False):
+    df = pd.read_csv(file_path)
+    df['last_login'] = pd.to_datetime(df['last_login'])
+    df['days_since_login'] = (pd.Timestamp.today() - df['last_login']).dt.days
+
+    identity_df = df[['name', 'email', 'age', 'preferred_category']].copy()
+    X = df[['age', 'watch_time', 'days_since_login']]
+
+    scaler = joblib.load(BASE_DIR / "model/scaler.pkl")
+    model = joblib.load(BASE_DIR / "model/model.pkl")
+
+    X_scaled = scaler.transform(X)
+    probs = model.predict_proba(X_scaled)[:, 1]
+
+    print("📌 예측 확률 상위 10개:", probs[:10])
+    print("📌 예측 확률 최소~최대:", probs.min(), "~", probs.max())
+    print("📌 받은 threshold:", threshold)
+
+    result_df = identity_df.copy()
+    result_df['churn_probability'] = probs
+    result_df['is_high_risk'] = result_df['churn_probability'] > threshold
+
+    result_df.reset_index(drop=True, inplace=True)
+    df.reset_index(drop=True, inplace=True)
+    df["is_high_risk"] = result_df["is_high_risk"]
+
+    print("📌 확률 상위 5명:\n", result_df.sort_values(by="churn_probability", ascending=False).head())
+    print("📌 is_high_risk True 개수:", result_df['is_high_risk'].sum())
+
+    churn_group = result_df[result_df["is_high_risk"]]
+    non_churn_group = result_df[~result_df["is_high_risk"]]
+
+    high_risk_df = df[df["is_high_risk"]].copy()
+    high_risk_df["churn_probability"] = result_df.loc[high_risk_df.index, "churn_probability"].values
+    high_risk_df = high_risk_df[[
+        "name", "age", "last_login", "watch_time", "preferred_category", "email", "churn_probability"
+    ]]
+    high_risk_df["last_login"] = pd.to_datetime(high_risk_df["last_login"]).dt.strftime("%Y-%m-%d")
+    high_risk_df["watch_time"] = pd.to_numeric(high_risk_df["watch_time"], errors="coerce").fillna(0).astype(int)
+    high_risk_df["watch_time"] = high_risk_df["watch_time"].astype(str) + "시간"
+
+    latest_path = BASE_DIR / "high_risk_customers.xlsx"
+    high_risk_df.to_excel(latest_path, index=False)
+
+    stats = {
+        "total_customers": len(result_df),
+        "expected_churns": int(result_df["is_high_risk"].sum()),
+        "average_age": {
+            "churn": round(churn_group["age"].mean(), 2) if not churn_group.empty else 0,
+            "non_churn": round(non_churn_group["age"].mean(), 2) if not non_churn_group.empty else 0,
+        },
+        "average_watch_time": {
+            "churn": round(df.loc[result_df["is_high_risk"], "watch_time"].mean(), 2) if not churn_group.empty else 0,
+            "non_churn": round(df.loc[~result_df["is_high_risk"], "watch_time"].mean(), 2) if not non_churn_group.empty else 0,
+        },
+        "average_days_since_login": {
+            "churn": round(df.loc[result_df["is_high_risk"], "days_since_login"].mean(), 2) if not churn_group.empty else 0,
+            "non_churn": round(df.loc[~result_df["is_high_risk"], "days_since_login"].mean(), 2) if not non_churn_group.empty else 0,
+        },
+        "genre_distribution": dict(Counter(result_df["preferred_category"]))
+    }
+
+    stats_path = BASE_DIR.parent / "public" / "stats.json"
+    stats_path.write_text(json.dumps(stats, ensure_ascii=False, indent=2))
+
+    top_5 = result_df.sort_values(by="churn_probability", ascending=False).head()
+    top_5.to_json(BASE_DIR / "top_5_customers.json", orient="records", force_ascii=False, indent=2)
+
+    if versioned:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        versioned_filename = f"result_{timestamp}.xlsx"
+        results_dir = BASE_DIR / "results"
+        results_dir.mkdir(parents=True, exist_ok=True)
+        versioned_path = results_dir / versioned_filename
+        high_risk_df.to_excel(versioned_path, index=False)
+
+        log_entry = {
+            "csv_file": Path(file_path).name,
+            "timestamp": timestamp,
+            "threshold": threshold,
+            "total_customers": stats["total_customers"],
+            "expected_churns": stats["expected_churns"],
+            "churn_rate": round(stats["expected_churns"] / stats["total_customers"], 3) if stats["total_customers"] > 0 else 0,
+            "result_file": versioned_filename
+        }
+
+        logs_path = results_dir / "logs.json"
+        try:
+            if logs_path.exists() and logs_path.stat().st_size > 0:
+                logs = json.loads(logs_path.read_text(encoding="utf-8"))
+            else:
+                logs = []
+        except json.JSONDecodeError:
+            print("⚠️ logs.json 깨짐 -> 새로 초기화")
+            logs = []
+
+        logs.append(log_entry)
+        logs_path.write_text(json.dumps(logs, ensure_ascii=False, indent=2))
+
+        print(f"✅ versioned 사본 저장: {versioned_filename}")
+        print("✅ logs.json 기록 완료")
+
+    print(f"✅ 최신본 저장: {latest_path.name}")
+    print("✅ stats.json 저장 완료")
+    print("✅ top_5_customers.json 저장 완료")
+
+    return result_df, churn_group, stats
+
+
+"""import pandas as pd
 import joblib
 from pathlib import Path
 from collections import Counter
@@ -99,4 +220,4 @@ def predict_churn(file_path: str, threshold: float = 0.5):
         json.dump(stats, f, ensure_ascii=False, indent=2)
 
     print("✅ 예측 완료: 결과 stats 생성 및 엑셀 저장됨")
-    return result_df, churn_group, stats
+    return result_df, churn_group, stats"""
