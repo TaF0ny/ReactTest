@@ -1,4 +1,5 @@
 'use client';
+
 import React, { useState } from 'react';
 import { Button, Typography, Box } from '@mui/material';
 
@@ -27,16 +28,18 @@ const CsvUpload: React.FC = () => {
       if (!response.ok) throw new Error(`Status: ${response.status}`);
 
       const result = await response.json();
-      console.log('서버 응답:', result);
-      setStatus('✅ CSV 업로드 완료');
+      console.log('✅ 서버 응답:', result);
+
+      // ✅ 서버가 보내준 메시지 그대로 반영!
+      setStatus(`✅ ${result.message}`);
     } catch (err) {
-      console.error('업로드 실패:', err);
-      setStatus('❌ CSV 업로드 실패');
+      console.error('❌ 업로드 실패:', err);
+      setStatus('❌ CSV 업로드 실패. 다시 시도해주세요.');
     }
   };
 
   return (
-    <Box 
+    <Box
       sx={{
         display: 'flex',
         flexDirection: 'column',
@@ -63,10 +66,10 @@ const CsvUpload: React.FC = () => {
         style={{ display: 'none' }}
       />
 
-      {/* 꾸민 버튼으로 파일 선택 */}
+      {/* 꾸민 버튼 */}
       <label htmlFor="csv-upload">
-        <Button 
-          variant="outlined" 
+        <Button
+          variant="outlined"
           component="span"
           sx={{
             mb: 2,
@@ -109,7 +112,7 @@ const CsvUpload: React.FC = () => {
         파일 업로드
       </Button>
 
-      {/* 업로드 결과 메시지 */}
+      {/* 서버 응답 메시지 출력 */}
       {status && (
         <Typography variant="body2" sx={{ mt: 2 }}>
           {status}
